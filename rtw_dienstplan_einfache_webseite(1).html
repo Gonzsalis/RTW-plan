@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RTW Dienstplan</title>
+  <style>
+    :root{--bg:#404040;--accent:#ffd166;color-scheme: dark}
+    html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;background:var(--bg);display:grid;place-items:center}
+    .card{background:#2b2b2b;padding:3rem;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.6);min-width:300px;text-align:center}
+    h1{margin:0 0 1rem;font-size:clamp(1.2rem,3vw,2rem);color:var(--accent)}
+    .time{font-size:1rem;opacity:0.8;margin-bottom:1rem;color:#f0f0f0}
+    .status{font-size:clamp(2rem,7vw,5rem);font-weight:700;letter-spacing:1px;color:#ffffff}
+    footer{margin-top:1rem;font-size:0.85rem;opacity:0.7;color:#e0e0e0}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Aktueller Dienst (RTW)</h1>
+    <div class="time" id="tzinfo">Zeitzone: Europe/Berlin</div>
+    <div class="status" id="status">--</div>
+    <footer id="next">Nächste Änderung: --</footer>
+  </div>
+
+  <script>
+    const periods = [
+      {start: '07:30', end: '13:30', label: 'RTW 2'},
+      {start: '13:30', end: '19:30', label: 'RTW 1'},
+      {start: '19:30', end: '01:30', label: 'RTW 2'},
+      {start: '01:30', end: '07:30', label: 'RTW 1'}
+    ];
+
+    function getBerlinTimeParts() {
+      const s = new Date().toLocaleString('de-DE', {timeZone: 'Europe/Berlin', hour12:false});
+      const d = new Date(s);
+      if (isNaN(d)) {
+        const parts = new Date().toLocaleString('de-DE', {timeZone:'Europe/Berlin', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false}).match(/(\d{2}):(\d{2}):(\d{2})/);
+        const hh = parseInt(parts[1],10), mm = parseInt(parts[2],10);
+        return {h:hh, m:mm, minutes: hh*60+mm};
+      }
+      return {h: d.getHours(), m: d.getMinutes(), minutes: d.getHours()*60 + d.getMinutes()};
+    }
+
+    function parseHM(hm) {
+      const [h,m] = hm.split(':').map(Number);
+      return h*60 + m;
+    }
+
+    function findActive(mins) {
+      for (const p of periods) {
+        const a = parseHM(p.start), b = parseHM(p.end);
+        if (a <= b) {
+          if (mins >= a && mins < b) return p;
+        } else {
+          if (mins >= a || mins < b) return p;
+        }
+      }
+      return null;
+    }
+
+    function nextChange(mins) {
+      const upcoming = [];
+      for (let dayOffset = 0; dayOffset < 2; dayOffset++) {
+        for (const p of periods) {
+          const end = parseHM(p.end) + dayOffset*24*60;
+          upcoming.push(end);
+        }
+      }
+      upcoming.sort((a,b)=>a-b);
+      for (const t of upcoming) {
+        if (t > mins) {
+          const diff = t - mins;
+          const hh = Math.floor(diff/60);
+          const mm = diff % 60;
+          return {inMinutes: diff, text: `${hh}h ${mm}m`};
+        }
+      }
+      return null;
+    }
+
+    function update() {
+      const berlin = getBerlinTimeParts();
+      document.getElementById('tzinfo').textContent = `Zeitzone: Europe/Berlin — ${String(berlin.h).padStart(2,'0')}:${String(berlin.m).padStart(2,'0')}`;
+      const active = findActive(berlin.minutes);
+      const statusEl = document.getElementById('status');
+      if (active) {
+        statusEl.textContent = active.label;
+      } else {
+        statusEl.textContent = '--';
+      }
+      const next = nextChange(berlin.minutes);
+      document.getElementById('next').textContent = next ? `Nächste Änderung in ${next.text}` : 'Nächste Änderung unbekannt';
+    }
+
+    update();
+    setInterval(update, 10*1000);
+  </script>
+</body>
+</html>
