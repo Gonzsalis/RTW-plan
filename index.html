@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>RTW Dienstplan</title>
   <style>
-    :root{--bg:#404040;--accent:#ffd166;color-scheme: dark}
+    :root{--bg:#404040;--accent:#40404;color-scheme: dark}
     html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;background:var(--bg);display:grid;place-items:center}
     .card{background:#404040;min-width:600px;text-align:center}
     h1{margin:0 0 1rem;font-size:clamp(1.2rem,3vw,2rem);color:var(--accent)}
-    .status{font-size:clamp(2rem,7vw,5rem);font-weight:700;letter-spacing:1px;color:#ffffff}
-    footer{margin-top:1rem;font-size:0.85rem;opacity:0.7;color:18:48 30.09.2025}
+    .status{font-size:clamp(2rem,7vw,6.5rem);font-weight:700;letter-spacing:1px;color:#ffa500}
+    footer{margin-top:1rem;font-size:2.5rem;opacity:1;color:18:48 30.09.2025}
   </style>
 </head>
 <body>
@@ -81,7 +81,7 @@
       const statusEl = document.getElementById('status');
       statusEl.textContent = active ? active.label : '--';
       const next = nextChange(berlin.minutes);
-      document.getElementById('next').textContent = next ? `Nächste Änderung in ${next.text}` : 'Nächste Änderung unbekannt';
+      document.getElementById('next').textContent = next ? `Änderung in ${next.text}` : 'Nächste Änderung unbekannt';
     }
 
     update();
