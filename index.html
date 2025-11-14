@@ -5,12 +5,44 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>RTW Dienstplan</title>
   <style>
-    :root{--bg:#404040;--accent:#40404;color-scheme: dark}
-    html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;background:var(--bg);display:grid;place-items:center}
-    .card{background:#404040;min-width:600px;text-align:center}
-    h1{margin:0 0 1rem;font-size:clamp(1.8rem,3vw,2rem);color:var(--accent);font-weight: normal}
-    .status{font-size:clamp(2rem,7vw,6.5rem);font-weight:700;letter-spacing:2px;color:#00E676}
-    footer{margin-top:1rem;font-size:1.8rem;opacity:1;color:18:48 30.09.2025}
+    :root{
+      --bg:#404040;
+      --accent:#f5f5f5;
+      color-scheme: dark;
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;
+      background:var(--bg);
+      display:grid;
+      place-items:center;
+    }
+    .card{
+      background:#404040;
+      min-width:600px;
+      text-align:center;
+      padding:1.5rem 2rem;
+      box-sizing:border-box;
+    }
+    h1{
+      margin:0 0 1rem;
+      font-size:clamp(1.8rem,3vw,2rem);
+      color:var(--accent);
+      font-weight: normal;
+    }
+    .status{
+      font-size:clamp(2rem,7vw,6.5rem);
+      font-weight:700;
+      letter-spacing:2px;
+      color:#00E676;
+    }
+    footer{
+      margin-top:1rem;
+      font-size:1.8rem;
+      opacity:0.9;
+      color:#f5f5f5;
+    }
   </style>
 </head>
 <body>
@@ -21,17 +53,21 @@
   </div>
 
   <script>
+    // 4-Stunden-Wechsel über 24h
     const periods = [
-      {start: '07:30', end: '13:30', label: 'RTW 2'},
-      {start: '13:30', end: '19:30', label: 'RTW 1'},
-      {start: '19:30', end: '01:30', label: 'RTW 2'},
-      {start: '01:30', end: '07:30', label: 'RTW 1'}
+      {start: '07:30', end: '11:30', label: 'RTW 2'},
+      {start: '11:30', end: '15:30', label: 'RTW 1'},
+      {start: '15:30', end: '19:30', label: 'RTW 2'},
+      {start: '19:30', end: '23:30', label: 'RTW 1'},
+      {start: '23:30', end: '03:30', label: 'RTW 2'},
+      {start: '03:30', end: '07:30', label: 'RTW 1'}
     ];
 
     function getBerlinTimeParts() {
       const parts = new Date().toLocaleString('de-DE', {
         timeZone:'Europe/Berlin',
-        hour:'2-digit', minute:'2-digit',
+        hour:'2-digit',
+        minute:'2-digit',
         hour12:false
       }).match(/(\d{2}):(\d{2})/);
       const hh = parseInt(parts[1],10), mm = parseInt(parts[2],10);
@@ -47,8 +83,10 @@
       for (const p of periods) {
         const a = parseHM(p.start), b = parseHM(p.end);
         if (a <= b) {
+          // gleicher Tag
           if (mins >= a && mins < b) return p;
         } else {
+          // über Mitternacht
           if (mins >= a || mins < b) return p;
         }
       }
@@ -80,8 +118,10 @@
       const active = findActive(berlin.minutes);
       const statusEl = document.getElementById('status');
       statusEl.textContent = active ? active.label : '--';
+
       const next = nextChange(berlin.minutes);
-      document.getElementById('next').textContent = next ? `Änderung in ${next.text}` : 'Nächste Änderung unbekannt';
+      document.getElementById('next').textContent =
+        next ? `Änderung in ${next.text}` : 'Nächste Änderung unbekannt';
     }
 
     update();
@@ -89,3 +129,4 @@
   </script>
 </body>
 </html>
+
