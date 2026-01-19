@@ -1,9 +1,9 @@
 {
-  "RTW 1": {
-    "status": 3,
+  "RTW-1": {
+    "status": 1,
     "since": null
   },
-  "RTW 2": {
+  "RTW-2": {
     "status": 3,
     "since": null
   }
