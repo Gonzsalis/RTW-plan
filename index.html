@@ -3,18 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>RTW Statusmonitor</title>
-
+  <title>RTW Dienstplan</title>
   <style>
     :root{
       --bg:#404040;
       --accent:#f5f5f5;
-      --rtw1:#00E676;
-      --rtw2:#FFB300;
-      --warn:#ff9800;
       color-scheme: dark;
     }
-
     html,body{
       height:100%;
       margin:0;
@@ -23,149 +18,114 @@
       display:grid;
       place-items:center;
     }
-
     .card{
       background:#404040;
-      width:min(90vw,700px);
+      min-width:600px;
       text-align:center;
       padding:1.5rem 2rem;
       box-sizing:border-box;
-      border-radius:18px;
-      box-shadow:0 10px 30px rgba(0,0,0,.35);
     }
-
     h1{
       margin:0 0 1rem;
       font-size:clamp(1.8rem,3vw,2rem);
       color:var(--accent);
       font-weight: normal;
     }
-
     .status{
-      font-size:clamp(2.5rem,8vw,7rem);
+      font-size:clamp(2rem,7vw,6.5rem);
       font-weight:700;
       letter-spacing:2px;
-      color:var(--accent);
-      transition:color .2s ease;
+      color:#00E676;
     }
-
     footer{
       margin-top:1rem;
-      font-size:1.4rem;
+      font-size:1.8rem;
       opacity:0.9;
       color:#f5f5f5;
     }
-
-    .geoalert{
-      margin-top: 20px;
-      padding: 15px 20px;
-      background: var(--warn);
-      color: #000;
-      border-radius: 14px;
-      font-size: 1.6rem;
-      font-weight: bold;
-      text-align: center;
-      display: none;
-      box-shadow:0 5px 20px rgba(0,0,0,.3);
-    }
   </style>
 </head>
-
 <body>
-
   <div class="card">
     <h1>Aktuell in erster Priorität</h1>
     <div class="status" id="status">--</div>
-    <footer id="info">Keine Fahrzeuge in Status 2</footer>
-
-    <div id="geoalert" class="geoalert">
-      ⚠️ Geoalarmierung beachten
-    </div>
+    <footer id="next">Nächste Änderung: --</footer>
   </div>
 
   <script>
-    async function update() {
-      let data;
+    // 4-Stunden-Wechsel über 24h
+    const periods = [
+      {start: '07:30', end: '11:30', label: 'RTW 2'},
+      {start: '11:30', end: '15:30', label: 'RTW 1'},
+      {start: '15:30', end: '19:30', label: 'RTW 2'},
+      {start: '19:30', end: '23:30', label: 'RTW 1'},
+      {start: '23:30', end: '03:30', label: 'RTW 2'},
+      {start: '03:30', end: '07:30', label: 'RTW 1'}
+    ];
 
-      try {
-        const res = await fetch("status.json?_=" + Date.now());
-        data = await res.json();
-      } catch (e) {
-        document.getElementById("status").textContent = "FEHLER";
-        document.getElementById("info").textContent = "status.json nicht erreichbar";
-        document.getElementById("geoalert").style.display = "none";
-        return;
-      }
+    function getBerlinTimeParts() {
+      const parts = new Date().toLocaleString('de-DE', {
+        timeZone:'Europe/Berlin',
+        hour:'2-digit',
+        minute:'2-digit',
+        hour12:false
+      }).match(/(\d{2}):(\d{2})/);
+      const hh = parseInt(parts[1],10), mm = parseInt(parts[2],10);
+      return {h:hh, m:mm, minutes: hh*60+mm};
+    }
 
-      const now = new Date();
-      let longestRTW = null;
-      let longestTime = 0;
-      let geoAlertActive = false;
+    function parseHM(hm) {
+      const [h,m] = hm.split(':').map(Number);
+      return h*60 + m;
+    }
 
-      for (const name in data) {
-        const entry = data[name];
-        const status = Number(entry.status);
-
-        // Geoalarm-Hinweis
-        if (status === 1) {
-          geoAlertActive = true;
+    function findActive(mins) {
+      for (const p of periods) {
+        const a = parseHM(p.start), b = parseHM(p.end);
+        if (a <= b) {
+          // gleicher Tag
+          if (mins >= a && mins < b) return p;
+        } else {
+          // über Mitternacht
+          if (mins >= a || mins < b) return p;
         }
+      }
+      return null;
+    }
 
-        // Status 2 zählen
-        if (status === 2 && entry.since) {
-          const since = new Date(entry.since);
-          const diff = now - since;
-
-          if (diff > longestTime) {
-            longestTime = diff;
-            longestRTW = name;
-          }
+    function nextChange(mins) {
+      const upcoming = [];
+      for (let dayOffset = 0; dayOffset < 2; dayOffset++) {
+        for (const p of periods) {
+          const end = parseHM(p.end) + dayOffset*24*60;
+          upcoming.push(end);
         }
       }
-
-      const statusEl = document.getElementById("status");
-      const infoEl = document.getElementById("info");
-      const geoEl = document.getElementById("geoalert");
-      const rootStyle = getComputedStyle(document.documentElement);
-
-      geoEl.style.display = geoAlertActive ? "block" : "none";
-
-      if (!longestRTW) {
-        statusEl.textContent = "--";
-        statusEl.style.color = rootStyle.getPropertyValue("--accent");
-        infoEl.textContent = "Keine Fahrzeuge in Status 2";
-        return;
+      upcoming.sort((a,b)=>a-b);
+      for (const t of upcoming) {
+        if (t > mins) {
+          const diff = t - mins;
+          const hh = Math.floor(diff/60);
+          const mm = diff % 60;
+          return {inMinutes: diff, text: `${hh}h ${mm}m`};
+        }
       }
+      return null;
+    }
 
-      statusEl.textContent = longestRTW;
+    function update() {
+      const berlin = getBerlinTimeParts();
+      const active = findActive(berlin.minutes);
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = active ? active.label : '--';
 
-      if (longestRTW === "RTW 1") {
-        statusEl.style.color = rootStyle.getPropertyValue("--rtw1");
-      } else if (longestRTW === "RTW 2") {
-        statusEl.style.color = rootStyle.getPropertyValue("--rtw2");
-      } else {
-        statusEl.style.color = rootStyle.getPropertyValue("--accent");
-      }
-
-      const totalMinutes = Math.floor(longestTime / 60000);
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
-
-      let timeText = "Seit ";
-      if (hours > 0) {
-        timeText += `${hours} Std `;
-      }
-      timeText += `${minutes} Min `;
-
-      infoEl.textContent = timeText;
+      const next = nextChange(berlin.minutes);
+      document.getElementById('next').textContent =
+        next ? `Änderung in ${next.text}` : 'Nächste Änderung unbekannt';
     }
 
     update();
-    setInterval(update, 5000); // Aktualisierung alle 5 sek
+    setInterval(update, 10*1000);
   </script>
-
 </body>
 </html>
-
-
-
